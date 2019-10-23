@@ -5,7 +5,7 @@ import pytesseract
 import codecs
 import pyocr
 import pyocr.builders
-
+import autocorrect
 
 import pillowfight
 import PIL.Image as Image
@@ -13,6 +13,8 @@ import cv2
 import numpy as np
 from imutils.perspective import four_point_transform
 from imutils import  grab_contours
+
+from src.SpellChecker import correct_sentence, correct_words
 
 
 class Output:
@@ -111,6 +113,7 @@ def stroke_width_transform(img):
     :return:
     """
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
     img = Image.fromarray(img)
     img = pillowfight.swt(img, output_type=pillowfight.SWT_OUTPUT_ORIGINAL_BOXES)
     """
@@ -123,9 +126,11 @@ def get_contours(img):
     :param img:
     :return:
     """
+    # answer = img.copy()
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img = cv2.threshold(img, 2, 255,
                         cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    cv2.imshow("thresh", img)
     contours = cv2.findContours(img.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     contours = grab_contours(contours)
     contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
@@ -141,10 +146,69 @@ def get_contours(img):
             break
     warped = four_point_transform(img, screenCont.reshape(4, 2))
     return warped
+
 def ocrwork(path):
     img = cv2.imread(path)
     img = cv2.resize(img,dsize=(800,1000))
     contured = get_contours(img)
     contured = stroke_width_transform(contured)
     a = ocrapi(contured,"both")
+    # a = correct_words(a)
     return a
+
+
+def auto_color_correction(img):
+    """
+    #stuffdone takes a 3 channel cv2 image and converts it to PIL image which is then
+        processed by Automatic Color Equalization.
+    .. A new algorithm for unsupervised global and local color correction." - A. Rizzi, C. Gatta and D. Marini
+    .. http://argmax.jp/index.php?colorcorrect
+    :param img:
+    :return:
+    """
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = Image.fromarray(img)
+    # pil_im.show()
+    img = pillowfight.ace(img,
+                          slope=10,
+                          limit=1000,
+                          samples=100,
+                          seed=None)
+    img = np.asarray(img)[:, :, ::].copy()
+    return img
+
+
+def stroke_width_transform3(img):
+    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # img = cv2.threshold(img, 1, 250,
+    #                     cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    img = Image.fromarray(img)
+    img = pillowfight.swt(img, output_type=pillowfight.SWT_OUTPUT_ORIGINAL_BOXES)
+    """
+    the returned image is in form of PIL
+    """
+
+    return img
+
+
+def stroke_width_transform2(img):
+    """
+    #stuffdone takes a 3 channel cv2 image and converts it to PIL image which is then
+        processed by Automatic Color Equalization.
+    .. A new algorithm for unsupervised global and local color correction." - A. Rizzi, C. Gatta and D. Marini
+    .. http://argmax.jp/index.php?colorcorrect
+    :param img:
+    :return:
+    """
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = Image.fromarray(img)
+    # pil_im.show()
+    img = pillowfight.ace(img,
+                          slope=10,
+                          limit=1000,
+                          samples=100,
+                          seed=None)
+    img = np.asarray(img)[:, :, ::].copy()
+    img = Image.fromarray(img)
+    return img
